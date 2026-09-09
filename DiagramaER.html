@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Diagrama ER — Sistema de Reservas de Aerolínea</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .diagram-container { overflow-x: auto; width: 100%; }
+    .mermaid {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 24px rgba(30,58,95,.10);
+      padding: 32px;
+      min-width: 900px;
+      margin: 0 auto;
+    }
+    /* Refuerzo: asegura texto oscuro y legible en todas las entidades del ER */
+    .mermaid svg text,
+    .mermaid svg tspan {
+      fill: #1e293b !important;
+    }
+    .mermaid svg .er.entityBox {
+      stroke: #2563eb !important;
+      stroke-width: 1.4px !important;
+    }
+    .mermaid svg .er.relationshipLabel {
+      fill: #1e293b !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="diagram-container">
+  <div class="mermaid">
+erDiagram
+
+  %% ── MÓDULO 1: VUELOS ─────────────────────────────────────────────────
+  AEROPUERTO {
+    int    airport_id  PK
+    string iata_code   "UNIQUE"
+    string nombre
+    string ciudad
+    string pais
+    string zona_horaria
+  }
+
+  RUTA {
+    int route_id            PK
+    int origen_airport_id   FK
+    int destino_airport_id  FK
+    int distancia_km
+    int duracion_estimada_min
+  }
+
+  AERONAVE {
+    int    aircraft_id             PK
+    string matricula               "UNIQUE"
+    string modelo
+    string fabricante
+    int    cap_economica
+    int    cap_ejecutiva
+  }
+
+  VUELO_PROGRAMADO {
+    int    flight_schedule_id PK
+    string numero_vuelo
+    int    route_id           FK
+    int    aircraft_id        FK
+    time   hora_salida
+    time   hora_llegada
+    string dias_semana
+    string estado
+    date   vigencia_desde
+    date   vigencia_hasta
+  }
+
+  INSTANCIA_VUELO {
+    int       flight_instance_id PK
+    int       flight_schedule_id FK
+    int       aircraft_id        FK
+    date      fecha_salida
+    timestamp salida_programada
+    timestamp llegada_programada
+    string    estado
+  }
+
+  %% ── MÓDULO 2: INVENTARIO ─────────────────────────────────────────────
+  INVENTARIO_CLASE {
+    int    inventory_id        PK
+    int    flight_instance_id  FK
+    string clase_asiento
+    int    total_asientos
+    int    asientos_disponibles
+    int    asientos_bloqueados
+    int    asientos_confirmados
+  }
+
+  BLOQUEO_TEMPORAL {
+    int       hold_id       PK
+    int       inventory_id  FK
+    int       booking_id    FK
+    string    session_token
+    int       cantidad
+    timestamp expira_en
+    string    estado
+  }
+
+  %% ── MÓDULO 3: TARIFAS ────────────────────────────────────────────────
+  TARIFA {
+    int     fare_id              PK
+    int     route_id             FK
+    string  clase_asiento
+    string  tipo_tarifa
+    decimal precio_base_usd
+    decimal impuesto_pct
+    int     anticipacion_min_dias
+    int     anticipacion_max_dias
+    string  politica_reembolso
+    boolean activa
+  }
+
+  %% ── MÓDULO 4: PERSONAS ───────────────────────────────────────────────
+  PASAJERO {
+    int    passenger_id     PK
+    string tipo_documento
+    string numero_documento "UNIQUE"
+    string primer_nombre
+    string apellido
+    string email            "UNIQUE"
+    string telefono
+    string nacionalidad
+    date   fecha_nacimiento
+  }
+
+  AGENCIA {
+    int     agency_id            PK
+    string  nombre
+    string  nit                  "UNIQUE"
+    string  email_contacto
+    decimal porcentaje_descuento
+    decimal porcentaje_comision
+    string  api_key_hash
+    string  estado
+  }
+
+  AGENTE {
+    int    agent_id  PK
+    int    agency_id FK
+    string nombre
+    string email     "UNIQUE"
+    string estado
+  }
+
+  %% ── MÓDULO 5: RESERVAS Y PAGOS ───────────────────────────────────────
+  RESERVA {
+    int       booking_id       PK
+    string    pnr              "UNIQUE"
+    int       agency_id        FK
+    int       agent_id         FK
+    timestamp fecha_reserva
+    decimal   monto_total_usd
+    string    estado
+    timestamp expira_en
+    timestamp fecha_cancelacion
+    string    motivo_cancelacion
+  }
+
+  RESERVA_PASAJERO {
+    int    rp_id          PK
+    int    booking_id     FK
+    int    passenger_id   FK
+    string numero_asiento
+    string clase_asiento
+    int    segment_id     FK
+  }
+
+  SEGMENTO_RESERVA {
+    int     segment_id         PK
+    int     booking_id         FK
+    int     flight_instance_id FK
+    int     fare_id            FK
+    int     orden_segmento
+    decimal monto_base_usd
+    decimal monto_impuestos_usd
+    string  estado
+  }
+
+  PAGO {
+    int       payment_id       PK
+    int       booking_id       FK
+    decimal   monto_usd
+    string    metodo_pago
+    string    token_transaccion "UNIQUE"
+    string    pasarela
+    string    estado
+    timestamp fecha_pago
+  }
+
+  COMISION {
+    int     commission_id      PK
+    int     booking_id         FK
+    int     agency_id          FK
+    decimal monto_comision_usd
+    decimal porcentaje_aplicado
+    string  estado_liquidacion
+    date    fecha_liquidacion
+  }
+
+  %% ── MÓDULO 6: AUDITORÍA ──────────────────────────────────────────────
+  EVENTO_AUDITORIA {
+    int       event_id       PK
+    string    tipo_entidad
+    int       entidad_id
+    string    estado_anterior
+    string    estado_nuevo
+    timestamp timestamp_utc
+    int       actor_id
+    string    tipo_actor
+    string    origen
+    text      detalle
+  }
+
+  %% ══ RELACIONES ═══════════════════════════════════════════════════════
+
+  %% Vuelos
+  AEROPUERTO       ||--o{ RUTA              : "origen"
+  AEROPUERTO       ||--o{ RUTA              : "destino"
+  RUTA             ||--o{ VUELO_PROGRAMADO  : "opera en"
+  AERONAVE         ||--o{ VUELO_PROGRAMADO  : "asignada a"
+  VUELO_PROGRAMADO ||--o{ INSTANCIA_VUELO   : "genera"
+  AERONAVE         ||--o{ INSTANCIA_VUELO   : "aeronave real"
+
+  %% Inventario
+  INSTANCIA_VUELO  ||--|{ INVENTARIO_CLASE  : "controla"
+  INVENTARIO_CLASE ||--o{ BLOQUEO_TEMPORAL  : "bloqueos"
+  RESERVA          ||--o{ BLOQUEO_TEMPORAL  : "asociado"
+
+  %% Tarifas
+  RUTA             ||--o{ TARIFA            : "tiene"
+  TARIFA           ||--o{ SEGMENTO_RESERVA  : "aplica a"
+
+  %% Personas
+  AGENCIA          ||--o{ AGENTE            : "emplea"
+
+  %% Reservas
+  AGENCIA          ||--o{ RESERVA           : "gestiona"
+  AGENTE           ||--o{ RESERVA           : "atiende"
+  RESERVA          ||--|{ SEGMENTO_RESERVA  : "contiene"
+  INSTANCIA_VUELO  ||--o{ SEGMENTO_RESERVA  : "compone"
+  RESERVA          ||--o{ RESERVA_PASAJERO  : "incluye"
+  PASAJERO         ||--o{ RESERVA_PASAJERO  : "participa"
+  SEGMENTO_RESERVA ||--o{ RESERVA_PASAJERO  : "en tramo"
+  RESERVA          ||--|| PAGO              : "tiene"
+  RESERVA          ||--o| COMISION          : "genera"
+  AGENCIA          ||--o{ COMISION          : "recibe"
+
+  %% Auditoría
+  RESERVA          ||--o{ EVENTO_AUDITORIA  : "registra"
+  PAGO             ||--o{ EVENTO_AUDITORIA  : "registra"
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor:       '#dbeafe',
+      primaryTextColor:   '#1e293b',
+      primaryBorderColor: '#2563eb',
+      lineColor:          '#334155',
+      textColor:          '#1e293b',
+      nodeTextColor:      '#1e293b',
+      secondaryColor:     '#eff6ff',
+      tertiaryColor:      '#f8fafc',
+      attributeBackgroundColorOdd:  '#ffffff',
+      attributeBackgroundColorEven: '#f1f5f9',
+      fontSize:           '14px',
+      fontFamily:         "'Segoe UI', Arial, sans-serif"
+    },
+    er: {
+      diagramPadding: 30,
+      layoutDirection: 'TB',
+      minEntityWidth:  130,
+      minEntityHeight: 40,
+      entityPadding:   15,
+      useMaxWidth:     true
+    }
+  });
+</script>
+</body>
+</html>
